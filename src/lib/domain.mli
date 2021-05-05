@@ -6,6 +6,9 @@ and t =
   | Neutral of {tp : t; term : ne}
   | Nat
   | Zero
+  | Bool
+  | True
+  | False
   | Suc of t
   | Pi of t * clos
   | Sig of t * clos
@@ -17,6 +20,7 @@ and ne =
   | Fst of ne
   | Snd of ne
   | NRec of clos * t * clos2 * ne
+  | If of clos * t * t * ne
 and nf =
   | Normal of {tp : t; term : t}
 

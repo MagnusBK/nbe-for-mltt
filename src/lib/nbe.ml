@@ -13,6 +13,14 @@ let rec do_rec tp zero suc n =
     D.Neutral {tp = final_tp; term = D.NRec (tp, zero, suc, e)}
   | _ -> raise (Nbe_failed "Not a number")
 
+and do_if tp tcase fcase prop =
+  match prop with
+  | D.True -> tcase
+  | D.False -> fcase
+  | D.Neutral {term = e; _} ->
+    D.Neutral {tp = do_clos tp prop; term = D.If (tp, tcase, fcase, e)}
+  | _ -> raise (Nbe_failed "Not a boolean")
+
 and do_fst p =
   match p with
   | D.Pair (p1, _) -> p1
@@ -59,6 +67,15 @@ and eval t (env : D.env) =
       (eval zero env)
       (Clos2 {term = suc; env})
       (eval n env)
+  | Syn.Bool -> D.Bool
+  | Syn.True -> D.True
+  | Syn.False -> D.False
+  | Syn.If (tp, tcase, fcase, prop) ->
+    do_if
+    (Clos {term = tp; env})
+    (eval tcase env)
+    (eval fcase env)
+    (eval prop env)
   | Syn.Pi (src, dest) ->
     D.Pi (eval src env, (Clos {term = dest; env}))
   | Syn.Lam t -> D.Lam (Clos {term = t; env})
@@ -89,6 +106,9 @@ let rec read_back_nf size nf =
   | D.Normal {tp = D.Nat; term = D.Suc nf} ->
     Syn.Suc (read_back_nf size (D.Normal {tp = D.Nat; term = nf}))
   | D.Normal {tp = D.Nat; term = D.Neutral {term = ne; _}} -> read_back_ne size ne
+  (* Booleans *)
+  | D.Normal {tp = D.Bool; term = D.True} -> Syn.True
+  | D.Normal {tp = D.Bool; term = D.False} -> Syn.False
   (* Types *)
   | D.Normal {tp = D.Uni _; term = D.Nat} -> Syn.Nat
   | D.Normal {tp = D.Uni i; term = D.Pi (src, dest)} ->
@@ -110,6 +130,7 @@ and read_back_tp size d =
   match d with
   | D.Neutral {term; _} -> read_back_ne size term
   | D.Nat -> Syn.Nat
+  | D.Bool -> Syn.Bool
   | D.Pi (src, dest) ->
     let var = D.mk_var src size in
     Syn.Pi (read_back_tp size src, read_back_tp (size + 1) (do_clos dest var))
@@ -139,6 +160,18 @@ and read_back_ne size ne =
        read_back_nf size (D.Normal {tp = zero_tp; term = zero}),
        suc',
        read_back_ne size n)
+  |D.If (tp, tcase, fcase, prop) ->
+    let tp_var = D.mk_var D.Nat size in
+    let applied_tp = do_clos tp tp_var in
+    let tcase_tp = do_clos tp D.True in
+    let fcase_tp = do_clos tp D.False in
+    let tp' = read_back_tp (size + 1) applied_tp in
+    Syn.NRec
+     (tp',
+      read_back_nf size (D.Normal {tp = tcase_tp; term = tcase}),
+      read_back_nf size (D.Normal {tp = fcase_tp; term = fcase}),
+      read_back_ne size prop)
+
   | D.Fst ne -> Syn.Fst (read_back_ne size ne)
   | D.Snd ne -> Syn.Snd (read_back_ne size ne)
 
@@ -168,6 +201,13 @@ let rec check_nf size nf1 nf2 =
     check_nf size (D.Normal {tp = D.Nat; term = nf1}) (D.Normal {tp = D.Nat; term = nf2})
   | D.Normal {tp = D.Nat; term = D.Neutral {term = ne1; _}},
     D.Normal {tp = D.Nat; term = D.Neutral {term = ne2; _}}-> check_ne size ne1 ne2
+    (* Booleans *)
+  | D.Normal {tp = D.Bool; term = D.True},
+    D.Normal {tp = D.Bool; term = D.True} -> true
+  | D.Normal {tp = D.Bool; term = D.False},
+    D.Normal {tp = D.Bool; term = D.False} -> true
+  | D.Normal {tp = D.Bool; term = D.Neutral {term = ne1; _}},
+    D.Normal {tp = D.Bool; term = D.Neutral {term = ne2; _}}-> check_ne size ne1 ne2
   (* Types *)
   | D.Normal {tp = D.Uni _; term = D.Nat},
     D.Normal {tp = D.Uni _; term = D.Nat} -> true
@@ -219,6 +259,7 @@ and check_tp ~subtype size d1 d2 =
   | D.Neutral {term = term1; _}, D.Neutral {term = term2; _} ->
     check_ne size term1 term2
   | D.Nat, D.Nat -> true
+  | D.Bool, D.Bool -> true
   | D.Pi (src, dest), D.Pi (src', dest') ->
     let var = D.mk_var src' size in
     check_tp ~subtype size src' src &&

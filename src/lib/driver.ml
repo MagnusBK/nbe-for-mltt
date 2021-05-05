@@ -36,6 +36,10 @@ let rec int_to_term = function
   | 0 -> S.Zero
   | n -> S.Suc (int_to_term (n - 1))
 
+let bool_to_term = function
+  | true -> S.True
+  | false -> S.False
+
 let rec unravel_spine f = function
   | [] -> f
   | x :: xs -> unravel_spine (x f) xs
@@ -58,6 +62,18 @@ let rec bind env = function
        bind env zero,
        bind (suc_name2 :: suc_name1 :: env) suc_body,
        bind env nat)
+  | CS.Bool -> S.Bool
+  | CS.BLit p -> bool_to_term p
+  | CS.If
+      { mot = Binder {name = mot_name; body = mot_body};
+        tcase;
+        fcase;
+        prop} ->
+      S.If
+        (bind (mot_name :: env) mot_body,
+         bind env tcase,
+         bind env fcase,
+         bind env prop)
   | CS.Pi (tp, Binder {name; body}) ->
     S.Pi (bind env tp, bind (name :: env) body)
   | CS.Lam (Binder {name; body}) ->

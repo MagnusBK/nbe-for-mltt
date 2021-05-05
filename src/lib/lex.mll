@@ -33,6 +33,10 @@ let keywords =
     ("at", AT);
     ("normalize", NORMALIZE);
     ("quit", QUIT);
+    ("Bool", BOOL);
+    ("true", TRUE);
+    ("false", FALSE);
+    ("if", IF);
   ]
 }
 

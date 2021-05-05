@@ -4,6 +4,7 @@
 
 %token <int> NUMERAL
 %token <string> ATOM
+%token <bool> BOOLEAN
 %token COLON PIPE AT COMMA RIGHT_ARROW UNDERSCORE
 %token LPR RPR LBR RBR LANGLE RANGLE
 %token EQUALS
@@ -13,6 +14,7 @@
 %token UNIV
 %token QUIT NORMALIZE
 %token EOF
+%token BOOL IF TRUE FALSE
 
 %start <Concrete_syntax.signature> sign
 %%
@@ -46,9 +48,16 @@ atomic:
     { Lit 0 }
   | n = NUMERAL
     { Lit n }
+  | TRUE
+    { BLit true}
+  | FALSE
+    { BLit false}
+  | prop = BOOLEAN
+    {BLit prop}
   | UNIV; LANGLE; i = NUMERAL; RANGLE
     { Uni i }
   | NAT { Nat }
+  | BOOL { Bool }
   | LANGLE left = term; COMMA; right = term; RANGLE
     { Pair (left, right) };
 
@@ -73,6 +82,15 @@ term:
         zero = zero_case;
         suc = Binder2 {name1 = suc_var; name2 = ih_var; body = suc_case};
         nat = n
+      } }
+  | IF; propp = term; AT; mot_name = name; RIGHT_ARROW; mot = term; WITH;
+    PIPE; TRUE; RIGHT_ARROW; tcasing = term;
+    PIPE; FALSE; RIGHT_ARROW; fcasing = term;
+    { If {
+        mot = Binder {name = mot_name; body = mot};
+        tcase = tcasing;
+        fcase = fcasing;
+        prop = propp
       } }
   | LAM; name = name; RIGHT_ARROW; body = term
     { Lam (Binder {name; body}) }

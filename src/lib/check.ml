@@ -50,6 +50,12 @@ let rec check ~env ~size ~term ~tp =
       | D.Uni _ -> ()
       | t -> tp_error (Expecting_universe t)
     end
+  | Bool ->
+    begin
+      match tp with
+      | D.Uni _ -> ()
+      | t -> tp_error (Expecting_universe t)
+    end
   | Pi (l, r) | Sig (l, r) ->
     check ~env ~size ~term:l ~tp;
     let l_sem = Nbe.eval l (env_to_sem_env env) in
@@ -97,6 +103,8 @@ and synth ~env ~size ~term =
     tp
   | Zero -> D.Nat
   | Suc term -> check ~env ~size ~term ~tp:Nat; D.Nat
+  | True -> D.Bool
+  | False -> D.Bool
   | Fst p ->
     begin
       match synth ~env ~size ~term:p with
@@ -120,7 +128,7 @@ and synth ~env ~size ~term =
         Nbe.do_clos dest a_sem
       | t -> tp_error (Misc ("Expecting Pi but found\n" ^ D.pp t))
     end
-  | NRec (mot, zero, suc, n) ->
+    | NRec (mot, zero, suc, n) ->
     check ~env ~size ~term:n ~tp:Nat;
     let var = D.mk_var Nat size in
     check_tp ~env:(add_term ~term:var ~tp:Nat env) ~size:(size + 1) ~term:mot;
@@ -136,11 +144,22 @@ and synth ~env ~size ~term =
       ~term:suc
       ~tp:suc_tp;
     Nbe.eval mot (Nbe.eval n sem_env :: sem_env)
+    | If (mot, tcase, fcase, prop) ->
+      check ~env ~size ~term:prop ~tp:Bool;
+      let var = D.mk_var Bool size in
+      check_tp ~env:(add_term ~term:var ~tp:Bool env) ~size:(size + 1) ~term:mot;
+      let sem_env = env_to_sem_env env in
+      let tcase_tp = Nbe.eval mot (True :: sem_env) in
+      let fcase_tp = Nbe.eval mot (False :: sem_env) in
+      check ~env ~size ~term:tcase ~tp:tcase_tp;
+      check ~env ~size ~term:fcase ~tp:fcase_tp;
+      Nbe.eval mot (Nbe.eval prop sem_env :: sem_env)
   | _ -> tp_error (Cannot_synth_term term)
 
 and check_tp ~env ~size ~term =
   match term with
   | Syn.Nat -> ()
+  | Syn.Bool -> ()
   | Uni _ -> ()
   | Pi (l, r) | Sig (l, r) ->
     check_tp ~env ~size ~term:l;

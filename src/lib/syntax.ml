@@ -5,6 +5,7 @@ type t =
   | Var of int (* DeBruijn indices for variables *)
   | Let of t * (* BINDS *) t | Check of t * t
   | Nat | Zero | Suc of t | NRec of (* BINDS *) t * t * (* BINDS 2 *) t * t
+  | Bool | True | False | If of (* BINDS *) t * t * t * t
   | Pi of t * (* BINDS *) t | Lam of (* BINDS *) t | Ap of t * t
   | Sig of t * (* BINDS *) t | Pair of t * t | Fst of t | Snd of t
   | Uni of uni_level
@@ -125,6 +126,18 @@ let to_sexp env t =
          go env zero;
          Sexp.List [suc_var1; suc_var2; go (suc_var2 :: suc_var1 :: env) suc];
          go env n]
+    | Bool -> Sexp.Atom "Bool"
+    | True -> Sexp.Atom "true"
+    | False -> Sexp.Atom "false"
+    | If (motive, tcase, fcase, prop) ->
+      incr counter;
+      let mvar = Sexp.Atom ("x" ^ string_of_int (! counter)) in
+      Sexp.List
+        [Sexp.Atom "if";
+         Sexp.List [mvar; go (mvar :: env) motive];
+         go env tcase;
+         go env fcase;
+         go env prop]
     | Pi (src, dest) ->
       incr counter;
       let var = Sexp.Atom ("x" ^ string_of_int (! counter)) in

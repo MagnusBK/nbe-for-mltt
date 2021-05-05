@@ -11,6 +11,9 @@ and t =
   | Suc of t
   | Lit of int
   | NRec of {mot : binder; zero : t; suc : binder2; nat : t}
+  | Bool
+  | BLit of bool
+  | If of {mot : binder; tcase : t; fcase : t; prop : t}
   | Pi of t * binder
   | Lam of binder
   | Ap of t * t list

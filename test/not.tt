@@ -1,0 +1,7 @@
+let not : Bool -> Bool =
+  fun p ->
+  if p at x -> Bool with
+  | true -> false
+  | false -> true
+
+normalize not true at Bool

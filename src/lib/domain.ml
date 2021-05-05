@@ -8,6 +8,9 @@ and t =
   | Neutral of {tp : t; term : ne}
   | Nat
   | Zero
+  | Bool
+  | True
+  | False
   | Suc of t
   | Pi of t * clos
   | Sig of t * clos
@@ -19,6 +22,7 @@ and ne =
   | Fst of ne
   | Snd of ne
   | NRec of clos * t * clos2 * ne
+  | If of clos * t * t * ne
 and nf =
   | Normal of {tp : t; term : t}
 
@@ -34,6 +38,11 @@ let rec int_of_syn = function
     end
   | _ -> None
 
+let bool_of_syn = function
+  | True -> Some true
+  | False -> Some false
+  | _ -> None
+
 let rec go_to_sexp size env = function
   | Nat -> Sexp.Atom "Nat"
   | Zero -> Sexp.Atom "zero"
@@ -43,6 +52,9 @@ let rec go_to_sexp size env = function
       | Some i -> Sexp.Atom (string_of_int (i + 1))
       | None -> Sexp.List [Sexp.Atom "suc"; go_to_sexp size env t]
     end
+  | Bool -> Sexp.Atom "Bool"
+  | True -> Sexp.Atom "True"
+  | False -> Sexp.Atom "False"
   | Pi (src, dest) ->
     Sexp.List
       [Sexp.Atom "Pi";
@@ -85,6 +97,13 @@ and go_to_sexp_ne size env = function
        go_to_sexp size env zero;
        Sexp.List [suc_var1; suc_var2; Syntax.to_sexp senv suc.term];
        go_to_sexp_ne size env n]
+  | If (motive, tcase, fcase, prop) ->
+    Sexp.List
+      [Sexp.Atom "if";
+       go_to_sexp_clos size env motive;
+       go_to_sexp size env tcase;
+       go_to_sexp size env fcase;
+       go_to_sexp_ne size env prop]
 
 and go_to_sexp_nf size env (Normal {tp; term}) =
   Sexp.List
